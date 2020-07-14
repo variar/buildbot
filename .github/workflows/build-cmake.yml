@@ -1,0 +1,82 @@
+name: "Build all"
+
+on: [repository_dispatch]
+
+jobs:
+  build:
+
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - os: ubuntu
+            cc: gcc-10
+            cxx: g++-10
+            arch: x64
+
+          - os: macos
+            cc: clang
+            cxx: clang++
+            arch: x64
+
+          - os: windows
+            cc: cl
+            cxx: cl
+            arch: x64
+
+    runs-on: ${{ matrix.config.os }}-latest
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        repository: ${{ secrets.REPO }}
+        ssh-key: ${{ secrets.BOT_SSH_KEY }}
+        ref: ${{ github.event.client_payload.ref }}
+    
+    - run: echo ${{ github.event.client_payload.sha }}
+
+    - uses: seanmiddleditch/gha-setup-ninja@master
+
+    - name: Prepare dev cmd
+      uses: ilammy/msvc-dev-cmd@v1
+      with:
+        arch: ${{ matrix.config.arch }}
+
+    - name: install compiler
+      if: ${{ matrix.config.os == 'ubuntu' }}
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y gcc-10 g++-10 mesa-common-dev libx11-dev xorg-dev freeglut3-dev libudev-dev
+
+    - name: Prepare compiler env
+      run: |
+        echo "::set-env name=CC::${{ matrix.config.cc }}"
+        echo "::set-env name=CXX::${{ matrix.config.cxx }}"
+
+    - name: cmake prepare
+      run: |
+        mkdir build
+        cd build
+        cmake -G Ninja -DCMAKE_BUILD_TYPE=Release ../src
+
+    - name: cmake build
+      run: |
+        cd build
+        cmake --build . 
+
+    - name: cmake test
+      run: |
+        cd build
+        ctest .
+
+    - name: notification
+      if: cancelled() == false
+      uses: variar/action-telegram@v1.3
+      with:
+        botToken: ${{ secrets.TG_TOKEN }}
+        chatId: ${{ secrets.TG_CHANNEL }}
+        commitHash: ${{ github.event.client_payload.sha }}
+        commitActor: ${{ github.event.client_payload.actor }}
+        comment: ${{ matrix.config.os }}
+        jobStatus: ${{ job.status }}
+        skipSuccess: false

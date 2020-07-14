@@ -1,0 +1,33 @@
+name: "Build submission in Docker"
+
+on: [repository_dispatch]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        repository: ${{ secrets.REPO }}
+        ssh-key: ${{ secrets.BOT_SSH_KEY }}
+        ref: ${{ github.event.client_payload.ref }}
+    
+    - run: echo ${{ github.event.client_payload.sha }}
+
+    - uses: satackey/action-docker-layer-caching@v0.0.3
+
+    - name: Build the Docker image
+      run: docker build . --file Dockerfile
+
+    - name: notification
+      if: cancelled() == false
+      uses: variar/action-telegram@v1.3
+      with:
+        botToken: ${{ secrets.TG_TOKEN }}
+        chatId: ${{ secrets.TG_CHANNEL }}
+        commitHash: ${{ github.event.client_payload.sha }}
+        commitActor: ${{ github.event.client_payload.actor }}
+        comment: pre-org
+        jobStatus: ${{ job.status }}
+        skipSuccess: false
