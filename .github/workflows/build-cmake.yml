@@ -67,7 +67,7 @@ jobs:
     - name: cmake test
       run: |
         cd build
-        ctest .
+        ctest --verbose .
 
     - name: notification
       if: cancelled() == false
