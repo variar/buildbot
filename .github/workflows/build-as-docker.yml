@@ -32,8 +32,8 @@ jobs:
 
     - name: Prepare compiler env
       run: |
-        echo "::set-env name=CC::${{ matrix.config.cc }}"
-        echo "::set-env name=CXX::${{ matrix.config.cxx }}"
+        echo "CC=${{ matrix.config.cc }}" >> $GITHUB_ENV
+        echo "CXX=${{ matrix.config.cxx }}" >> $GITHUB_ENV
 
     - name: build
       run: |
